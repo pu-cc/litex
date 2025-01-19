@@ -111,17 +111,63 @@ class CologneChipDifferentialOutput:
 # CologneChip SDR Input ----------------------------------------------------------------------------
 
 class CologneChipSDRInputImpl(Module):
-    def __init__(self, i, o):
+    def __init__(self, i, o, clk):
+        ibf_y = Signal()
         for j in range(len(i)):
-            self.specials += Instance("CC_IBUF",
-                i_I  = i[j],
-                o_O = o[j],
-            )
+            self.specials += [
+                Instance("CC_IBUF",
+                    p_FF_IBF = 1,
+                    i_I      = i[j],
+                    o_Y      = ibf_y,
+                ),
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = ibf_y,
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = o[j],
+                )
+            ]
 
 class CologneChipSDRInput:
     @staticmethod
     def lower(dr):
-        return CologneChipSDRInput(dr.i, dr.o)
+        return CologneChipSDRInputImpl(dr.i, dr.o, dr.clk)
+
+
+# CologneChip SDR Output ---------------------------------------------------------------------------
+
+class CologneChipSDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        dff_q = Signal()
+        for j in range(len(i)):
+            self.specials += [
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = i[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = dff_q,
+                ),
+                Instance("CC_OBUF",
+                    p_FF_OBF = 1,
+                    i_A      = dff_q,
+                    o_O      = o[j],
+                )
+            ]
+
+class CologneChipSDROutput:
+    @staticmethod
+    def lower(dr):
+        return CologneChipSDROutputImpl(dr.i, dr.o, dr.clk)
 
 # CologneChip Special Overrides --------------------------------------------------------------------
 
@@ -132,4 +178,5 @@ colognechip_special_overrides = {
     DifferentialInput:      CologneChipDifferentialInput,
     DifferentialOutput:     CologneChipDifferentialOutput,
     SDRInput:               CologneChipSDRInput,
+    SDROutput:              CologneChipSDROutput,
 }
