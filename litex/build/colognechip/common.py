@@ -46,13 +46,27 @@ class CologneChipAsyncResetSynchronizer:
 
 class CologneChipDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
+        align_q = Signal()
         for j in range(len(i)):
-            self.specials += Instance("CC_IDDR",
-                i_CLK = clk,
-                i_D   = i[j],
-                o_Q0  = o1[j],
-                o_Q1  = o2[j],
-            )
+            self.specials += [
+                Instance("CC_IDDR",
+                    i_CLK = clk,
+                    i_D   = i[j],
+                    o_Q0  = o1[j],
+                    o_Q1  = align_q,
+                ),
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = align_q,
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = o2[j],
+                )
+            ]
 
 class CologneChipDDRInput:
     @staticmethod
@@ -63,20 +77,65 @@ class CologneChipDDRInput:
 
 class CologneChipDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
+        align_q = Signal()
         for j in range(len(o)):
-            self.specials += Instance("CC_ODDR",
-                p_CLK_INV = 0,
-                i_CLK     = clk,
-                i_DDR     = clk,
-                i_D0      = i1[j],
-                i_D1      = i2[j],
-                o_Q       = o[j],
-            )
+            self.specials += [
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = i2[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = align_q,
+                ),
+                Instance("CC_ODDR",
+                    p_CLK_INV = 0,
+                    i_CLK     = clk,
+                    i_DDR     = clk,
+                    i_D0      = i1[j],
+                    i_D1      = align_q,
+                    o_Q       = o[j],
+                )
+            ]
 
 class CologneChipDDROutput:
     @staticmethod
     def lower(dr):
         return CologneChipDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
+# CologneChip DDR Tristate -------------------------------------------------------------------------
+
+class ColognechipDDRTristateImpl(Module):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+        _o    = Signal().like(o1)
+        _oe_n = Signal().like(oe1)
+        _i    = Signal().like(i1)
+        self.specials += DDROutput(o1, o2, _o, clk)
+        self.specials += DDROutput(~oe1, ~oe2, _oe_n, clk) if oe2 is not None else SDROutput(~oe1, _oe_n, clk)
+        self.specials += DDRInput(_i, i1, i2, clk)
+        for j in range(len(io)):
+            self.specials += [
+                Instance("CC_IDDR",
+                    i_CLK = clk,
+                    i_D   = _i[j],
+                    o_Q0  = o1[j],
+                    o_Q1  = align_q,
+                ),
+                Instance("CC_IOBUF",
+                    io_IO = io[j],
+                    o_Y   = _i[j],
+                    i_A   = _o[j],
+                    i_T   = _oe_n[j],
+                )
+            ]
+
+class CologneChipDDRTristate:
+    @staticmethod
+    def lower(dr):
+        return ColognechipDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
 
 # CologneChip Differential Input -------------------------------------------------------------------
 
@@ -138,7 +197,6 @@ class CologneChipSDRInput:
     def lower(dr):
         return CologneChipSDRInputImpl(dr.i, dr.o, dr.clk)
 
-
 # CologneChip SDR Output ---------------------------------------------------------------------------
 
 class CologneChipSDROutputImpl(Module):
@@ -169,14 +227,73 @@ class CologneChipSDROutput:
     def lower(dr):
         return CologneChipSDROutputImpl(dr.i, dr.o, dr.clk)
 
+# CologneChip SDR Tristate -------------------------------------------------------------------------
+
+class CologneChipSDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal().like(o)
+        _oe_n = Signal().like(oe)
+        _i    = Signal().like(i)
+        for j in range(len(io)):
+            self.specials += [
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = o[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = _o[j],
+                ),
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = ~oe[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = _oe_n[j],
+                ),
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = _i[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = i[j],
+                ),
+                Instance("CC_IOBUF",
+                    p_FF_IBF = 1,
+                    p_FF_OBF = 1,
+                    io_IO    = io[j],
+                    o_Y      = _i[j],
+                    i_A      = _o[j],
+                    i_T      = _oe_n[j],
+                ),
+            ]
+
+class CologneChipSDRTristate:
+    @staticmethod
+    def lower(dr):
+        return CologneChipSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
 # CologneChip Special Overrides --------------------------------------------------------------------
 
 colognechip_special_overrides = {
     AsyncResetSynchronizer: CologneChipAsyncResetSynchronizer,
     DDRInput:               CologneChipDDRInput,
     DDROutput:              CologneChipDDROutput,
+    DDRTristate:            CologneChipDDRTristate,
     DifferentialInput:      CologneChipDifferentialInput,
     DifferentialOutput:     CologneChipDifferentialOutput,
     SDRInput:               CologneChipSDRInput,
     SDROutput:              CologneChipSDROutput,
+    SDRTristate:            CologneChipSDRTristate,
 }
