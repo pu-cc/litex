@@ -138,7 +138,7 @@ class NaxRiscv(CPU):
             xlen = int(args.xlen)
             NaxRiscv.xlen                 = xlen
             NaxRiscv.data_width           = xlen
-            NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64
+            NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64 if xlen == 64 else CPU_GCC_TRIPLE_RISCV32
             NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
         if args.cpu_count:
             NaxRiscv.cpu_count = args.cpu_count
@@ -427,13 +427,13 @@ class NaxRiscv(CPU):
 
             self.cpu_params.update(
                 i_jtag_instruction_clk     = self.jtag_clk,
-                i_jtag_instruction_enable  = self.jtag_enable,
-                i_jtag_instruction_capture = self.jtag_capture,
-                i_jtag_instruction_shift   = self.jtag_shift,
-                i_jtag_instruction_update  = self.jtag_update,
-                i_jtag_instruction_reset   = self.jtag_reset,
-                i_jtag_instruction_tdi     = self.jtag_tdi,
-                o_jtag_instruction_tdo     = self.jtag_tdo,
+                i_jtag_instruction_instruction_enable  = self.jtag_enable,
+                i_jtag_instruction_instruction_capture = self.jtag_capture,
+                i_jtag_instruction_instruction_shift   = self.jtag_shift,
+                i_jtag_instruction_instruction_update  = self.jtag_update,
+                i_jtag_instruction_instruction_reset   = self.jtag_reset,
+                i_jtag_instruction_instruction_tdi     = self.jtag_tdi,
+                o_jtag_instruction_instruction_tdo     = self.jtag_tdo,
             )
 
         if NaxRiscv.jtag_instruction or NaxRiscv.jtag_tap:

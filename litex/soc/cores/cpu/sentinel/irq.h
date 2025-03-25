@@ -9,6 +9,13 @@ extern "C" {
 #include <generated/csr.h>
 #include <generated/soc.h>
 
+/* Custom interrupt I/O registers. The value of IRQ line to Sentinel is:
+   (irq_pending() & irq_getmask()) != 0.
+
+   Of course, if MIE is clear, no interrupts will be serviced :). */
+#define INTERRUPT_PEND 0x10L
+#define INTERRUPT_MASK 0x14L
+
 static inline unsigned int irq_getie(void)
 {
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
@@ -21,21 +28,17 @@ static inline void irq_setie(unsigned int ie)
 
 static inline unsigned int irq_getmask(void)
 {
-	unsigned int mask;
-	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_MIE));
-	return (mask >> FIRQ_OFFSET);
+	return *((unsigned int *)INTERRUPT_MASK);
 }
 
 static inline void irq_setmask(unsigned int mask)
 {
-	asm volatile ("csrw %0, %1" :: "i"(CSR_MIE), "r"(mask << FIRQ_OFFSET));
+	*((unsigned int *)INTERRUPT_MASK) = mask;
 }
 
-static inline unsigned int irq_pending(void)
-{
-	unsigned int pending;
-	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_MIP));
-	return (pending >> FIRQ_OFFSET);
+static inline unsigned int irq_pending(void) {
+
+	return *((unsigned int *)INTERRUPT_PEND);
 }
 
 #ifdef __cplusplus

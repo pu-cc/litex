@@ -57,20 +57,21 @@ class SetupError(Exception):
 # Get SHA1: git rev-parse --short=7 HEAD
 
 class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, sha1=None, branch="master", tag=None):
+    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master", tag=None):
         assert clone in ["regular", "recursive"]
-        self.url     = url
-        self.clone   = clone
-        self.develop = develop
-        self.sha1    = sha1
-        self.branch  = branch
-        self.tag     = tag
+        self.url      = url
+        self.clone    = clone
+        self.develop  = develop
+        self.editable = editable
+        self.sha1     = sha1
+        self.branch   = branch
+        self.tag      = tag
 
 
 git_repos = {
     # HDL.
     # ----
-    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", sha1=0xccaee68e14d3636e1d8fb2e0864dd89b1b1f7384),
+    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", editable=False, sha1=0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c),
 
     # LiteX SoC builder.
     # ------------------
@@ -89,6 +90,7 @@ git_repos = {
     "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
+    "litei2c":      GitRepo(url="https://github.com/litex-hub/",     tag=True, branch="main"),
 
     # LiteX Misc Cores.
     # -----------------
@@ -126,6 +128,7 @@ git_repos = {
     "pythondata-cpu-openc906":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-sentinel":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
@@ -147,7 +150,6 @@ standard_repos.remove("pythondata-cpu-cva6")
 standard_repos.remove("pythondata-cpu-ibex")
 standard_repos.remove("pythondata-cpu-openc906")
 standard_repos.remove("pythondata-cpu-marocchino")
-standard_repos.remove("pythondata-cpu-minerva")
 standard_repos.remove("pythondata-cpu-microwatt")
 standard_repos.remove("pythondata-cpu-picorv32")
 standard_repos.remove("pythondata-cpu-rocket")
@@ -285,9 +287,10 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("\"{python3}\" -m pip install --editable . {options}".format(
-                python3 = sys.executable,
-                options = "--user" if user_mode else "",
+            subprocess.check_call("\"{python3}\" -m pip install {editable} . {options}".format(
+                python3  = sys.executable,
+                editable = "--editable" if repo.editable else "",
+                options  = "--user"     if user_mode else "",
                 ), shell=True)
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):

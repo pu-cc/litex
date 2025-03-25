@@ -163,7 +163,7 @@ class EfinixTristateImpl(LiteXModule):
             io_data_i = platform.add_iface_io(io_name + "_OUT", len(io))
             self.comb += io_data_i.eq(o)
         io_data_e    = platform.add_iface_io(io_name + "_OE", len(io))
-        self.comb += io_data_e.eq(oe)
+        self.comb += io_data_e.eq(oe if len(oe) == len(io) else Replicate(oe, len(io)))
         if i is not None:
             io_data_o  = platform.add_iface_io(io_name + "_IN", len(io))
             self.comb += i.eq(io_data_o)
@@ -195,7 +195,7 @@ class EfinixDifferentialOutputImpl(LiteXModule):
         io_pad  = platform.get_pad_name(o_p) # need real pad name
         io_prop = platform.get_pin_properties(o_p)
 
-        if platform.family == "Titanium":
+        if platform.family in ["Titanium", "Topaz"]:
             # _p has _P_ and _n has _N_ followed by an optional function
             # lvds block needs _PN_
             pad_split = io_pad.split('_')
@@ -240,7 +240,7 @@ class EfinixDifferentialInputImpl(LiteXModule):
         io_pad  = platform.get_pad_name(i_p) # need real pad name
         io_prop = platform.get_pin_properties(i_p)
 
-        if platform.family == "Titanium":
+        if platform.family in ["Titanium", "Topaz"]:
             # _p has _P_ and _n has _N_ followed by an optional function
             # lvds block needs _PN_
             pad_split = io_pad.split('_')
